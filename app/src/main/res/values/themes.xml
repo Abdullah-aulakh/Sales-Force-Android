@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_window_bg">#F4F6F9</color>
+
+    <style name="Theme.SalesForce" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_window_bg</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>
