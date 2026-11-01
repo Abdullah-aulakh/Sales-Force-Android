@@ -11,8 +11,8 @@ object ApiClient {
 
     // Replace this with your actual backend host.
     // Keep the trailing slash.
-    private const val BASE_URL = "https://52.64.71.168/"
-    //private const val BASE_URL = "http://192.168.18.195:8000/"
+    //private const val BASE_URL = "https://52.64.71.168/"
+    private const val BASE_URL = "http://192.168.18.195:8000/"
 
 
     private val json = Json {

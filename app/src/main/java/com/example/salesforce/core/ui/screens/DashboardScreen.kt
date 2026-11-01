@@ -110,7 +110,6 @@ fun DashboardScreen(
         DashboardSubScreen.Orders -> {
             OrdersScreen(
                 repository = repository,
-                currentUser = currentUser,
                 onBack = { onSubScreenChange(DashboardSubScreen.Grid) },
             )
         }

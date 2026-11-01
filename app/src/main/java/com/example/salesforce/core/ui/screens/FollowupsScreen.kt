@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,7 +28,12 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,8 +59,11 @@ import androidx.compose.ui.unit.dp
 import com.example.salesforce.core.errors.AppError
 import com.example.salesforce.core.network.AuthRepository
 import com.example.salesforce.core.network.Customer
+import com.example.salesforce.core.network.Industry
 import com.example.salesforce.core.network.Meeting
 import com.example.salesforce.core.network.MeetingCreateRequest
+import com.example.salesforce.core.network.OrderItemPayload
+import com.example.salesforce.core.network.Product
 import com.example.salesforce.core.network.UserResponse
 import com.example.salesforce.core.ui.components.NativeDateTimePickerDialog
 import com.example.salesforce.core.ui.notifications.LocalAppNotifier
@@ -274,7 +283,7 @@ fun FollowupsScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EditFollowupSubScreen(
     meeting: Meeting,
@@ -287,12 +296,41 @@ fun EditFollowupSubScreen(
     val notifier = LocalAppNotifier.current
     val scope = rememberCoroutineScope()
 
+    // When editing follow-up, status can be "follow_up" (to extend), "successful", or "rejected"
     var status by remember { mutableStateOf(meeting.status) }
     var followUpTimeIso by remember { mutableStateOf(meeting.followUpTime ?: "") }
     var followUpDisplayStr by remember { mutableStateOf(if (!meeting.followUpTime.isNullOrBlank()) formatHumanDateTime(meeting.followUpTime) else "Select Date & Time...") }
     var showDateTimePicker by remember { mutableStateOf(false) }
     var feedbackText by remember { mutableStateOf(meeting.feedback ?: "") }
     var isSaving by remember { mutableStateOf(false) }
+
+    // Product selection state for "successful" status (Take Order flow in follow-up)
+    var industries by remember { mutableStateOf<List<Industry>>(emptyList()) }
+    var selectedIndustry by remember { mutableStateOf<Industry?>(null) }
+    var productSearchQuery by remember { mutableStateOf("") }
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var selectedProducts by remember { mutableStateOf<Set<Product>>(emptySet()) }
+
+    LaunchedEffect(Unit) {
+        try {
+            industries = repository.getIndustries()
+        } catch (e: Exception) {
+            notifier.error("EditFollowup", "getIndustries", AppError.BACKEND_ERROR, e)
+        }
+    }
+
+    LaunchedEffect(selectedIndustry, productSearchQuery) {
+        if (selectedIndustry != null) {
+            try {
+                products = repository.getProducts(industryId = selectedIndustry!!.id, search = productSearchQuery.ifBlank { null })
+            } catch (e: Exception) {
+                notifier.error("EditFollowup", "getProducts", AppError.BACKEND_ERROR, e)
+            }
+        } else {
+            products = emptyList()
+            selectedProducts = emptySet()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -328,9 +366,10 @@ fun EditFollowupSubScreen(
 
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .imePadding(),
+                .imePadding()
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Meeting Status:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -340,7 +379,8 @@ fun EditFollowupSubScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                listOf("successful", "follow_up", "rejected").forEach { s ->
+                // Keep follow_up option to extend, plus successful and rejected
+                listOf("follow_up", "successful", "rejected").forEach { s ->
                     FilterChip(
                         selected = status == s,
                         onClick = { status = s },
@@ -361,6 +401,106 @@ fun EditFollowupSubScreen(
                 }
             }
 
+            // If status == "successful", show Take Order (Products Selection) Section
+            if (status == "successful") {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Attach / Replace Order Products:", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                var industryExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = industryExpanded,
+                    onExpandedChange = { industryExpanded = !industryExpanded },
+                ) {
+                    OutlinedTextField(
+                        value = selectedIndustry?.name ?: "Select Industry...",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Industry *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = industryExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = industryExpanded,
+                        onDismissRequest = { industryExpanded = false },
+                    ) {
+                        industries.forEach { ind ->
+                            DropdownMenuItem(
+                                text = { Text(ind.name) },
+                                onClick = {
+                                    selectedIndustry = ind
+                                    selectedProducts = emptySet()
+                                    industryExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+
+                if (selectedIndustry != null) {
+                    var productDropdownExpanded by remember { mutableStateOf(false) }
+
+                    ExposedDropdownMenuBox(
+                        expanded = productDropdownExpanded,
+                        onExpandedChange = { productDropdownExpanded = !productDropdownExpanded },
+                    ) {
+                        OutlinedTextField(
+                            value = if (selectedProducts.isEmpty()) "Select Products..." else "${selectedProducts.size} Product(s) Selected",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Products (${selectedIndustry?.name}) *") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = productDropdownExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = productDropdownExpanded,
+                            onDismissRequest = { productDropdownExpanded = false },
+                        ) {
+                            if (products.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("No products available for this industry") },
+                                    onClick = { productDropdownExpanded = false },
+                                )
+                            } else {
+                                products.forEach { prod ->
+                                    val isSelected = selectedProducts.contains(prod)
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            ) {
+                                                Checkbox(
+                                                    checked = isSelected,
+                                                    onCheckedChange = null,
+                                                )
+                                                Column {
+                                                    Text(prod.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                                    if (!prod.description.isNullOrBlank()) {
+                                                        Text(prod.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedProducts = if (isSelected) {
+                                                selectedProducts - prod
+                                            } else {
+                                                selectedProducts + prod
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             OutlinedTextField(
                 value = feedbackText,
                 onValueChange = { feedbackText = it },
@@ -368,51 +508,62 @@ fun EditFollowupSubScreen(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
             )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                if (status == "follow_up" && followUpTimeIso.isBlank()) {
-                    notifier.error("EditFollowup", "validation", AppError.BACKEND_ERROR, Exception("Follow-up date and time are required"))
-                    return@Button
-                }
-
-                val execId = currentUser?.id ?: meeting.executiveId
-
-                scope.launch {
-                    isSaving = true
-                    try {
-                        repository.updateMeeting(
-                            id = meeting.id,
-                            request = MeetingCreateRequest(
-                                customerId = meeting.customerId,
-                                executiveId = execId,
-                                status = status,
-                                followUpTime = if (status == "follow_up") followUpTimeIso else null,
-                                feedback = feedbackText.ifBlank { null },
-                            ),
-                        )
-                        onUpdated()
-                    } catch (e: Exception) {
-                        notifier.error("EditFollowup", "updateMeeting", AppError.BACKEND_ERROR, e)
-                    } finally {
-                        isSaving = false
+            Button(
+                onClick = {
+                    if (status == "follow_up" && followUpTimeIso.isBlank()) {
+                        notifier.error("EditFollowup", "validation", AppError.BACKEND_ERROR, Exception("Follow-up date and time are required"))
+                        return@Button
                     }
+                    if (status == "successful" && selectedProducts.isEmpty()) {
+                        notifier.error("EditFollowup", "validation", AppError.BACKEND_ERROR, Exception("Please select at least one product for a successful order meeting"))
+                        return@Button
+                    }
+
+                    val execId = currentUser?.id ?: meeting.executiveId
+
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            val itemsPayload = if (status == "successful" && selectedProducts.isNotEmpty()) {
+                                selectedProducts.map { OrderItemPayload(productId = it.id) }
+                            } else null
+
+                            repository.updateMeeting(
+                                id = meeting.id,
+                                request = MeetingCreateRequest(
+                                    customerId = meeting.customerId,
+                                    executiveId = execId,
+                                    status = status,
+                                    followUpTime = if (status == "follow_up") followUpTimeIso else null,
+                                    feedback = feedbackText.ifBlank { null },
+                                    items = itemsPayload,
+                                ),
+                            )
+                            onUpdated()
+                        } catch (e: Exception) {
+                            notifier.error("EditFollowup", "updateMeeting", AppError.BACKEND_ERROR, e)
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+                enabled = !isSaving,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    Text("Save Changes", style = MaterialTheme.typography.titleMedium)
                 }
-            },
-            enabled = !isSaving,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            if (isSaving) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp))
-            } else {
-                Text("Save Changes", style = MaterialTheme.typography.titleMedium)
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 

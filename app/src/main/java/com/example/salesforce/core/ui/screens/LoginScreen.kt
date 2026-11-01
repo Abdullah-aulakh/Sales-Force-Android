@@ -1,4 +1,3 @@
-
 package com.example.salesforce.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
@@ -8,10 +7,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -45,7 +47,7 @@ import com.example.salesforce.core.ui.notifications.LocalAppNotifier
 fun LoginScreen(
     loading: Boolean,
     errorMessage: String?,
-    onLogin: (cnic: String, password: String) -> Unit
+    onLogin: (cnic: String, password: String) -> Unit,
 ) {
     val notifier = LocalAppNotifier.current
 
@@ -57,26 +59,28 @@ fun LoginScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(24.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
                     text = "Welcome Back",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -84,7 +88,7 @@ fun LoginScreen(
                 Text(
                     text = "Sign in to your account",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -106,13 +110,13 @@ fun LoginScreen(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = null
+                            contentDescription = null,
                         )
                     },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Number,
                     ),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -128,7 +132,7 @@ fun LoginScreen(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = null
+                            contentDescription = null,
                         )
                     },
                     trailingIcon = {
@@ -136,7 +140,7 @@ fun LoginScreen(
                             onClick = {
                                 passwordVisible = !passwordVisible
                             },
-                            enabled = !loading
+                            enabled = !loading,
                         ) {
                             Icon(
                                 imageVector = if (passwordVisible) {
@@ -148,7 +152,7 @@ fun LoginScreen(
                                     "Hide password"
                                 } else {
                                     "Show password"
-                                }
+                                },
                             )
                         }
                     },
@@ -158,9 +162,9 @@ fun LoginScreen(
                         PasswordVisualTransformation()
                     },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password
+                        keyboardType = KeyboardType.Password,
                     ),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -172,7 +176,7 @@ fun LoginScreen(
                                 notifier.error(
                                     screen = "LoginScreen",
                                     operation = "validateCnic",
-                                    error = AppError.INVALID_CNIC
+                                    error = AppError.INVALID_CNIC,
                                 )
                             }
 
@@ -180,7 +184,7 @@ fun LoginScreen(
                                 notifier.error(
                                     screen = "LoginScreen",
                                     operation = "validatePassword",
-                                    error = AppError.EMPTY_PASSWORD
+                                    error = AppError.EMPTY_PASSWORD,
                                 )
                             }
 
@@ -193,14 +197,14 @@ fun LoginScreen(
                     enabled = !loading,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ),
                 ) {
                     if (loading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
                         )
 
                         Spacer(modifier = Modifier.size(12.dp))
@@ -210,7 +214,7 @@ fun LoginScreen(
                         Text(
                             text = "Sign In",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }

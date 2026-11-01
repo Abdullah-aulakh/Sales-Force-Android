@@ -55,35 +55,33 @@ fun HomeScreen(
 
     val monthlyTargets = userResponse?.monthlyTargets ?: 100
     val dailyTargets = userResponse?.dailyTargets ?: 10
+    val liveTodayOrders = userResponse?.todayOrders ?: 0
+    val liveMonthlyOrders = userResponse?.monthlyOrders ?: 0
+    val liveMonthlyMeetings = userResponse?.monthlyMeetings ?: 0
+    val liveAllTimeOrders = userResponse?.allTimeOrders ?: 0
+    val liveAllTimeMeetings = userResponse?.allTimeMeetings ?: 0
 
-    val todayOrders = userResponse?.todayOrders ?: 0
-    val monthlyOrders = userResponse?.monthlyOrders ?: 0
-    val allTimeOrders = userResponse?.allTimeOrders ?: 0
-
-    val monthlyMeetings = userResponse?.monthlyMeetings ?: 0
-    val allTimeMeetings = userResponse?.allTimeMeetings ?: 0
-
-    // Computed percentages & success rates from real API data
+    // Computed percentages & success rates from updated live counts
     val monthlyTargetPct = if (monthlyTargets > 0) {
-        ((monthlyOrders.toFloat() / monthlyTargets.toFloat()) * 100f).coerceIn(0f, 100f)
+        ((liveMonthlyOrders.toFloat() / monthlyTargets.toFloat()) * 100f).coerceIn(0f, 100f)
     } else {
         0f
     }
 
     val dailyTargetPct = if (dailyTargets > 0) {
-        ((todayOrders.toFloat() / dailyTargets.toFloat()) * 100f).coerceIn(0f, 100f)
+        ((liveTodayOrders.toFloat() / dailyTargets.toFloat()) * 100f).coerceIn(0f, 100f)
     } else {
         0f
     }
 
-    val monthlySuccessRate = if (monthlyMeetings > 0) {
-        ((monthlyOrders.toFloat() / monthlyMeetings.toFloat()) * 100f).toInt().coerceIn(0, 100)
+    val monthlySuccessRate = if (liveMonthlyMeetings > 0) {
+        ((liveMonthlyOrders.toFloat() / liveMonthlyMeetings.toFloat()) * 100f).toInt().coerceIn(0, 100)
     } else {
         0
     }
 
-    val allTimeSuccessRate = if (allTimeMeetings > 0) {
-        ((allTimeOrders.toFloat() / allTimeMeetings.toFloat()) * 100f).toInt().coerceIn(0, 100)
+    val allTimeSuccessRate = if (liveAllTimeMeetings > 0) {
+        ((liveAllTimeOrders.toFloat() / liveAllTimeMeetings.toFloat()) * 100f).toInt().coerceIn(0, 100)
     } else {
         0
     }
@@ -169,7 +167,7 @@ fun HomeScreen(
                         CircularPercentageIndicator(
                             percentage = monthlyTargetPct,
                             title = "Monthly Target",
-                            subtitle = "$monthlyOrders of $monthlyTargets orders",
+                            subtitle = "$liveMonthlyOrders of $monthlyTargets orders",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
@@ -185,7 +183,7 @@ fun HomeScreen(
                         CircularPercentageIndicator(
                             percentage = dailyTargetPct,
                             title = "Daily Target",
-                            subtitle = "$todayOrders of $dailyTargets orders today",
+                            subtitle = "$liveTodayOrders of $dailyTargets orders today",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
@@ -237,15 +235,15 @@ fun HomeScreen(
                     ActivityOverviewCard(
                         modifier = Modifier.weight(1f),
                         title = "Meetings",
-                        currentValue = monthlyMeetings,
-                        totalValue = allTimeMeetings,
+                        currentValue = liveMonthlyMeetings,
+                        totalValue = liveAllTimeMeetings,
                         period = "Monthly / All-time",
                     )
                     ActivityOverviewCard(
                         modifier = Modifier.weight(1f),
                         title = "Orders",
-                        currentValue = monthlyOrders,
-                        totalValue = allTimeOrders,
+                        currentValue = liveMonthlyOrders,
+                        totalValue = liveAllTimeOrders,
                         period = "Monthly / All-time",
                     )
                 }
@@ -316,14 +314,18 @@ private fun ActivityOverviewCard(
     val totalAnimatable = remember { Animatable(0f) }
 
     LaunchedEffect(currentValue, totalValue) {
-        currentAnimatable.animateTo(
-            targetValue = currentValue.toFloat(),
-            animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-        )
-        totalAnimatable.animateTo(
-            targetValue = totalValue.toFloat(),
-            animationSpec = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-        )
+        launch {
+            currentAnimatable.animateTo(
+                targetValue = currentValue.toFloat(),
+                animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            )
+        }
+        launch {
+            totalAnimatable.animateTo(
+                targetValue = totalValue.toFloat(),
+                animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            )
+        }
     }
 
     Card(

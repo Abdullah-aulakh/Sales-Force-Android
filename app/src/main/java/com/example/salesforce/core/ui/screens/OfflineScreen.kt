@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -48,8 +49,8 @@ fun OfflineScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Rounded.WifiOff,
-                        contentDescription = "No Connection",
+                        imageVector = Icons.Rounded.CloudOff,
+                        contentDescription = "Server Unavailable",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(48.dp),
                     )
@@ -57,16 +58,17 @@ fun OfflineScreen(
             }
 
             Text(
-                text = "No Connection",
+                text = "Server Unavailable",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
             )
 
             Text(
-                text = "Please check your internet connection or server availability and try again.",
+                text = "We are unable to reach the SalesForce backend server. Please ensure the server is online and your connection is active.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
 

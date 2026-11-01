@@ -105,6 +105,7 @@ interface ApiService {
     suspend fun getOrders(
         @Header("Authorization") authorization: String,
         @Header("X-API-Key") apiKey: String = DEFAULT_API_KEY,
+        @Query("customer_name") customerName: String? = null,
         @Query("offset") offset: Int = 0,
         @Query("limit") limit: Int = 50,
     ): Response<List<Order>>
@@ -151,6 +152,7 @@ interface ApiService {
     suspend fun getMeetings(
         @Header("Authorization") authorization: String,
         @Header("X-API-Key") apiKey: String = DEFAULT_API_KEY,
+        @Query("customer_name") customerName: String? = null,
         @Query("offset") offset: Int = 0,
         @Query("limit") limit: Int = 50,
     ): Response<List<Meeting>>
@@ -333,6 +335,7 @@ data class Order(
     @SerialName("agent_id") val agentId: Int,
     @SerialName("customer_id") val customerId: Int,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable
@@ -346,6 +349,7 @@ data class OrderDetails(
     @SerialName("cell_number") val cellNumber: String? = null,
     val customer: OrderDetailCustomer? = null,
     @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
     val items: List<OrderDetailLine> = emptyList(),
 )
 
@@ -422,14 +426,21 @@ data class Meeting(
     val status: String,
     @SerialName("follow_up_time") val followUpTime: String? = null,
     val feedback: String? = null,
+    @SerialName("order_id") val orderId: Int? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String? = null,
 )
 
 @Serializable
 data class MeetingCreateRequest(
-    @SerialName("customer_id") val customerId: Int,
+    @SerialName("customer_id") val customerId: Int? = null,
+    val name: String? = null,
+    @SerialName("business_name") val businessName: String? = null,
+    val address: String? = null,
+    @SerialName("cell_number") val cellNumber: String? = null,
     @SerialName("executive_id") val executiveId: Int,
     val status: String, // "rejected", "follow_up", "successful"
     @SerialName("follow_up_time") val followUpTime: String? = null,
     val feedback: String? = null,
+    val items: List<OrderItemPayload>? = null,
 )

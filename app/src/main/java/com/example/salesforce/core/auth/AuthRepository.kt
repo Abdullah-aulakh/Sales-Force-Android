@@ -116,9 +116,9 @@ class AuthRepository(
         return response.body() ?: emptyList()
     }
 
-    suspend fun getOrders(): List<Order> {
+    suspend fun getOrders(customerName: String? = null): List<Order> {
         val token = tokenStore.getValidToken() ?: throw Exception("Unauthorized")
-        val response = api.getOrders(authorization = "Bearer $token")
+        val response = api.getOrders(authorization = "Bearer $token", customerName = customerName)
         if (!response.isSuccessful) {
             throw ApiException(response.code(), extractApiMessage(response.errorBody()?.string()))
         }
@@ -168,9 +168,9 @@ class AuthRepository(
         return response.body() ?: throw Exception("Failed to create order item")
     }
 
-    suspend fun getMeetings(): List<Meeting> {
+    suspend fun getMeetings(customerName: String? = null): List<Meeting> {
         val token = tokenStore.getValidToken() ?: throw Exception("Unauthorized")
-        val response = api.getMeetings(authorization = "Bearer $token")
+        val response = api.getMeetings(authorization = "Bearer $token", customerName = customerName)
         if (!response.isSuccessful) {
             throw ApiException(response.code(), extractApiMessage(response.errorBody()?.string()))
         }
