@@ -61,11 +61,11 @@ import com.example.salesforce.core.network.OrderCreateRequest
 import com.example.salesforce.core.network.OrderDetails
 import com.example.salesforce.core.network.OrderItemPayload
 import com.example.salesforce.core.network.Product
+import com.example.salesforce.core.ui.PakistanTime
 import com.example.salesforce.core.ui.components.MonthYearPickerHeader
 import com.example.salesforce.core.ui.notifications.LocalAppNotifier
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import java.util.TimeZone
 
 @Composable
 fun OrdersScreen(
@@ -82,7 +82,7 @@ fun OrdersScreen(
     var customerToEdit by remember { mutableStateOf<Customer?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val currentCal = Calendar.getInstance()
+    val currentCal = Calendar.getInstance(PakistanTime.timeZone)
     var selectedYear by remember { mutableStateOf(currentCal.get(Calendar.YEAR)) }
     var selectedMonth by remember { mutableStateOf(currentCal.get(Calendar.MONTH) + 1) }
 
@@ -586,50 +586,5 @@ fun OrderDetailsSubScreen(
 }
 
 private fun formatHumanDateTime(isoString: String): String {
-    return try {
-        if (isoString.contains("T")) {
-            val parts = isoString.split("T")
-            val dateComps = parts[0].split("-")
-            val timeComps = if (parts.size > 1) parts[1].take(8).split(":") else emptyList()
-
-            if (dateComps.size == 3 && timeComps.size >= 2) {
-                val year = dateComps[0].toIntOrNull() ?: 2026
-                val month = (dateComps[1].toIntOrNull() ?: 1) - 1
-                val day = dateComps[2].toIntOrNull() ?: 1
-                val hour = timeComps[0].toIntOrNull() ?: 0
-                val minute = timeComps[1].toIntOrNull() ?: 0
-
-                val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                    set(year, month, day, hour, minute)
-                }
-
-                val pkCal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Karachi")).apply {
-                    timeInMillis = utcCal.timeInMillis
-                }
-
-                val monthNames = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-                val mStr = monthNames.getOrElse(pkCal.get(Calendar.MONTH)) { "Jan" }
-                val dNum = pkCal.get(Calendar.DAY_OF_MONTH)
-                val yNum = pkCal.get(Calendar.YEAR)
-
-                val pkHour24 = pkCal.get(Calendar.HOUR_OF_DAY)
-                val pkMinute = pkCal.get(Calendar.MINUTE)
-                val amPm = if (pkHour24 >= 12) "PM" else "AM"
-                val pkHour12 = when {
-                    pkHour24 == 0 -> 12
-                    pkHour24 > 12 -> pkHour24 - 12
-                    else -> pkHour24
-                }
-                val minStr = if (pkMinute < 10) "0$pkMinute" else "$pkMinute"
-
-                "$mStr $dNum, $yNum • $pkHour12:$minStr $amPm"
-            } else {
-                isoString
-            }
-        } else {
-            isoString
-        }
-    } catch (_: Exception) {
-        isoString
-    }
+    return PakistanTime.formatDateTime(isoString)
 }

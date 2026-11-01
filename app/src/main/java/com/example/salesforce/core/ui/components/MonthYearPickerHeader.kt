@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.salesforce.core.ui.PakistanTime
 import java.util.Calendar
 
 @Composable
@@ -63,7 +64,7 @@ fun MonthYearPickerHeader(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            val currentCal = Calendar.getInstance()
+            val currentCal = Calendar.getInstance(PakistanTime.timeZone)
             val currentY = currentCal.get(Calendar.YEAR)
             val currentM = currentCal.get(Calendar.MONTH) + 1
             val canGoNext = selectedYear < currentY || (selectedYear == currentY && selectedMonth < currentM)

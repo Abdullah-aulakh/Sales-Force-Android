@@ -5,12 +5,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 
 @Composable
 fun rememberScreenScaleFactor(): Float {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    return when {
-        screenWidthDp < 360 -> 0.85f // Small compact phones
-        screenWidthDp < 410 -> 0.92f // Standard smaller phones
-        screenWidthDp <= 600 -> 1.0f  // Regular phones
-        else -> 1.15f                // Tablets & large screens
-    }
+    return screenScaleFactor(LocalConfiguration.current.screenWidthDp)
+}
+
+internal fun screenScaleFactor(screenWidthDp: Int): Float {
+    if (screenWidthDp <= 0) return 1f
+    return (screenWidthDp / 390f).coerceIn(0.82f, 1f)
 }

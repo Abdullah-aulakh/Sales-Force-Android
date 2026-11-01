@@ -48,13 +48,37 @@ import com.example.salesforce.core.network.AuthRepository
 import com.example.salesforce.core.network.UserActivityResponse
 import com.example.salesforce.core.network.UserResponse
 import com.example.salesforce.core.ui.components.MonthYearPickerHeader
+import com.example.salesforce.core.ui.PakistanTime
 import com.example.salesforce.core.ui.notifications.LocalAppNotifier
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.launch
 
 data class MonthItem(val year: Int, val month: Int, val label: String)
+
+private fun parseDateOnly(date: String?, timeZone: TimeZone): Calendar? {
+    if (date == null || !date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
+
+    val year = date.substring(0, 4).toIntOrNull() ?: return null
+    val month = date.substring(5, 7).toIntOrNull() ?: return null
+    val day = date.substring(8, 10).toIntOrNull() ?: return null
+    if (year < 1 || month !in 1..12 || day !in 1..31) return null
+
+    return Calendar.getInstance(timeZone).apply {
+        clear()
+        isLenient = false
+        set(year, month - 1, day)
+    }.let { calendar ->
+        try {
+            calendar.timeInMillis
+            calendar
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+}
 
 @Composable
 fun AttendanceScreen(
@@ -68,8 +92,9 @@ fun AttendanceScreen(
     var isSubmitting by remember { mutableStateOf(false) }
     var markedTodayLocally by remember(currentUser?.id) { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val pakistanTimeZone = remember { PakistanTime.timeZone }
 
-    val currentCal = Calendar.getInstance()
+    val currentCal = Calendar.getInstance(pakistanTimeZone)
     var selectedYear by remember { mutableStateOf(currentCal.get(Calendar.YEAR)) }
     var selectedMonth by remember { mutableStateOf(currentCal.get(Calendar.MONTH) + 1) } // 1-12
 
@@ -89,20 +114,11 @@ fun AttendanceScreen(
 
     val oldestDateStr = activityResponse?.oldestAttendanceDate
     val oldestCal = remember(oldestDateStr) {
-        Calendar.getInstance().apply {
-            if (!oldestDateStr.isNullOrBlank()) {
-                try {
-                    val parts = oldestDateStr.split("T")[0].split("-")
-                    if (parts.size == 3) {
-                        set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
-                    }
-                } catch (_: Exception) {
-                    set(2023, Calendar.JANUARY, 1)
-                }
-            } else {
+        parseDateOnly(oldestDateStr, pakistanTimeZone)
+            ?: Calendar.getInstance(pakistanTimeZone).apply {
+                clear()
                 set(2023, Calendar.JANUARY, 1)
             }
-        }
     }
 
     val monthsList = remember(oldestCal) {
@@ -110,25 +126,33 @@ fun AttendanceScreen(
         val cal = (oldestCal.clone() as Calendar).apply {
             set(Calendar.DAY_OF_MONTH, 1)
         }
-        val targetCal = Calendar.getInstance()
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        val targetCal = Calendar.getInstance(pakistanTimeZone)
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).apply {
+            timeZone = pakistanTimeZone
+        }
 
         while (!cal.after(targetCal)) {
-            list.add(MonthItem(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), sdf.format(cal.time)))
+            list.add(MonthItem(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, sdf.format(cal.time)))
             cal.add(Calendar.MONTH, 1)
         }
         if (list.isEmpty()) {
-            list.add(MonthItem(currentCal.get(Calendar.YEAR), currentCal.get(Calendar.MONTH), SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(currentCal.time)))
+            list.add(
+                MonthItem(
+                    currentCal.get(Calendar.YEAR),
+                    currentCal.get(Calendar.MONTH) + 1,
+                    sdf.format(currentCal.time),
+                ),
+            )
         }
         list
     }
 
-    val cal = Calendar.getInstance().apply {
+    val cal = Calendar.getInstance(pakistanTimeZone).apply {
         set(selectedYear, selectedMonth - 1, 1)
     }
     val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-    val todayCal = Calendar.getInstance()
+    val todayCal = Calendar.getInstance(pakistanTimeZone)
     val todayYear = todayCal.get(Calendar.YEAR)
     val todayMonth = todayCal.get(Calendar.MONTH) + 1 // 1-12 (matches API)
     val todayDay = todayCal.get(Calendar.DAY_OF_MONTH)

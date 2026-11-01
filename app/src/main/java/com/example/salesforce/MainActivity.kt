@@ -18,13 +18,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.example.salesforce.core.auth.AuthTokenStore
 import com.example.salesforce.core.errors.AppError
 import com.example.salesforce.core.network.ApiClient
 import com.example.salesforce.core.network.AuthRepository
 import com.example.salesforce.core.network.UserResponse
+import com.example.salesforce.core.ui.PakistanTime
 import com.example.salesforce.core.ui.ThemeMode
 import com.example.salesforce.core.ui.ThemePreferences
+import com.example.salesforce.core.ui.rememberScreenScaleFactor
 import com.example.salesforce.core.ui.components.AppToastHost
 import com.example.salesforce.core.ui.components.LoadingOverlay
 import com.example.salesforce.core.ui.components.rememberAppToastState
@@ -37,6 +41,7 @@ import com.example.salesforce.ui.screens.MainAppScreen
 import com.example.salesforce.ui.theme.SalesForceTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.TimeZone
 
 class MainActivity : ComponentActivity() {
 
@@ -46,6 +51,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        TimeZone.setDefault(PakistanTime.timeZone)
         super.onCreate(savedInstanceState)
 
         val tokenStore = AuthTokenStore(applicationContext)
@@ -153,103 +159,112 @@ class MainActivity : ComponentActivity() {
             }
 
             SalesForceTheme(themeMode = themeMode) {
+                val baseDensity = LocalDensity.current
+                val screenScaleFactor = rememberScreenScaleFactor()
                 CompositionLocalProvider(
-                    LocalAppNotifier provides appNotifier,
+                    LocalDensity provides Density(
+                        density = baseDensity.density * screenScaleFactor,
+                        fontScale = baseDensity.fontScale,
+                    ),
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
+                    CompositionLocalProvider(
+                        LocalAppNotifier provides appNotifier,
                     ) {
-                        when {
-                            checkingSession -> {
-                                SplashScreen()
-                            }
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            when {
+                                checkingSession -> {
+                                    SplashScreen()
+                                }
 
-                            isOffline && !loggedIn -> {
-                                OfflineScreen(onRetry = { checkSession() })
-                            }
+                                isOffline && !loggedIn -> {
+                                    OfflineScreen(onRetry = { checkSession() })
+                                }
 
-                            loggedIn -> {
-                                MainAppScreen(
-                                    userName = userName,
-                                    userResponse = userResponse,
-                                    repository = repository,
-                                    themeMode = themeMode,
-                                    onThemeModeChange = { newMode ->
-                                        scope.launch {
-                                            themePreferences.setThemeMode(newMode)
-                                        }
-                                    },
-                                    onRefresh = {
-                                        try {
-                                            val freshUser = repository.getHome(forceRefresh = true)
-                                            if (freshUser != null) {
-                                                userResponse = freshUser
-                                                userName = freshUser.name
-                                            }
-                                        } catch (e: Exception) {
-                                            appNotifier.error(
-                                                screen = "HomeScreen",
-                                                operation = "refresh",
-                                                error = AppError.BACKEND_ERROR,
-                                                cause = e,
-                                            )
-                                        }
-                                    },
-                                    onLogout = {
-                                        scope.launch {
-                                            try {
-                                                repository.logout()
-                                            } catch (_: Exception) {
-                                                // Ignore logout failure
-                                            } finally {
-                                                loggedIn = false
-                                                userName = ""
-                                                userResponse = null
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-
-                            else -> {
-                                LoadingOverlay(
-                                    isLoading = isLoginLoading,
-                                    message = "Signing in...",
-                                ) {
-                                    LoginScreen(
-                                        loading = isLoginLoading,
-                                        errorMessage = loginErrorMessage,
-                                        onLogin = { cnic, password ->
+                                loggedIn -> {
+                                    MainAppScreen(
+                                        userName = userName,
+                                        userResponse = userResponse,
+                                        repository = repository,
+                                        themeMode = themeMode,
+                                        onThemeModeChange = { newMode ->
                                             scope.launch {
-                                                isLoginLoading = true
-                                                loginErrorMessage = null
+                                                themePreferences.setThemeMode(newMode)
+                                            }
+                                        },
+                                        onRefresh = {
+                                            try {
+                                                val freshUser = repository.getHome(forceRefresh = true)
+                                                if (freshUser != null) {
+                                                    userResponse = freshUser
+                                                    userName = freshUser.name
+                                                }
+                                            } catch (e: Exception) {
+                                                appNotifier.error(
+                                                    screen = "HomeScreen",
+                                                    operation = "refresh",
+                                                    error = AppError.BACKEND_ERROR,
+                                                    cause = e,
+                                                )
+                                            }
+                                        },
+                                        onLogout = {
+                                            scope.launch {
                                                 try {
-                                                    repository.login(cnic, password)
-                                                    val user = repository.getHome()
-                                                    if (user != null) {
-                                                        loggedIn = true
-                                                        userName = user.name
-                                                        userResponse = user
-                                                    }
-                                                } catch (e: Exception) {
-                                                    loginErrorMessage = e.localizedMessage ?: "Login failed"
-                                                    appNotifier.error(
-                                                        screen = "LoginScreen",
-                                                        operation = "login",
-                                                        error = AppError.BACKEND_ERROR,
-                                                        cause = e,
-                                                    )
+                                                    repository.logout()
+                                                } catch (_: Exception) {
+                                                    // Ignore logout failure
                                                 } finally {
-                                                    isLoginLoading = false
+                                                    loggedIn = false
+                                                    userName = ""
+                                                    userResponse = null
                                                 }
                                             }
                                         },
                                     )
                                 }
-                            }
-                        }
 
-                        AppToastHost(state = toastState)
+                                else -> {
+                                    LoadingOverlay(
+                                        isLoading = isLoginLoading,
+                                        message = "Signing in...",
+                                    ) {
+                                        LoginScreen(
+                                            loading = isLoginLoading,
+                                            errorMessage = loginErrorMessage,
+                                            onLogin = { cnic, password ->
+                                                scope.launch {
+                                                    isLoginLoading = true
+                                                    loginErrorMessage = null
+                                                    try {
+                                                        repository.login(cnic, password)
+                                                        val user = repository.getHome()
+                                                        if (user != null) {
+                                                            loggedIn = true
+                                                            userName = user.name
+                                                            userResponse = user
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        loginErrorMessage = e.localizedMessage ?: "Login failed"
+                                                        appNotifier.error(
+                                                            screen = "LoginScreen",
+                                                            operation = "login",
+                                                            error = AppError.BACKEND_ERROR,
+                                                            cause = e,
+                                                        )
+                                                    } finally {
+                                                        isLoginLoading = false
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+
+                            AppToastHost(state = toastState)
+                        }
                     }
                 }
             }

@@ -19,25 +19,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import java.text.SimpleDateFormat
+import com.example.salesforce.core.ui.PakistanTime
 import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativeDateTimePickerDialog(
     initialDateTimeMillis: Long = System.currentTimeMillis(),
-    onDateTimeSelected: (String) -> Unit, // Returns ISO string in UTC for backend
+    onDateTimeSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateTimeMillis)
+    val initialDatePickerMillis = PakistanTime.datePickerSelectionMillis(initialDateTimeMillis)
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDatePickerMillis)
     var showTimePicker by remember { mutableStateOf(false) }
-    var selectedMillis by remember { mutableStateOf(initialDateTimeMillis) }
+    var selectedMillis by remember { mutableStateOf(initialDatePickerMillis) }
+    val currentPakistanTime = remember { PakistanTime.nowCalendar() }
 
     val timePickerState = rememberTimePickerState(
-        initialHour = Calendar.getInstance(TimeZone.getTimeZone("Asia/Karachi")).get(Calendar.HOUR_OF_DAY),
-        initialMinute = Calendar.getInstance(TimeZone.getTimeZone("Asia/Karachi")).get(Calendar.MINUTE),
+        initialHour = currentPakistanTime.get(Calendar.HOUR_OF_DAY),
+        initialMinute = currentPakistanTime.get(Calendar.MINUTE),
         is24Hour = true,
     )
 
@@ -46,7 +46,7 @@ fun NativeDateTimePickerDialog(
             onDismissRequest = onDismiss,
             confirmButton = {
                 TextButton(onClick = {
-                    selectedMillis = datePickerState.selectedDateMillis ?: initialDateTimeMillis
+                    selectedMillis = datePickerState.selectedDateMillis ?: initialDatePickerMillis
                     showTimePicker = true
                 }) {
                     Text("Next: Select Time")
@@ -72,8 +72,7 @@ fun NativeDateTimePickerDialog(
             },
             confirmButton = {
                 Button(onClick = {
-                    // 1. User picked date and time in PKT (Asia/Karachi)
-                    val pkCal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Karachi")).apply {
+                    val pakistanCalendar = PakistanTime.nowCalendar().apply {
                         timeInMillis = selectedMillis
                         set(Calendar.HOUR_OF_DAY, timePickerState.hour)
                         set(Calendar.MINUTE, timePickerState.minute)
@@ -81,16 +80,7 @@ fun NativeDateTimePickerDialog(
                         set(Calendar.MILLISECOND, 0)
                     }
 
-                    // 2. Convert PKT to UTC for backend transmission
-                    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-                        timeInMillis = pkCal.timeInMillis
-                    }
-
-                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                    }
-                    val isoString = sdf.format(utcCal.time)
-                    onDateTimeSelected(isoString)
+                    onDateTimeSelected(PakistanTime.formatApiDateTime(pakistanCalendar))
                 }) {
                     Text("Confirm Date & Time")
                 }
